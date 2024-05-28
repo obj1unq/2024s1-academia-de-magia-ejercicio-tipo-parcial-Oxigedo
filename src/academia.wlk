@@ -20,10 +20,40 @@ class Academia{
 	method validarGuardado(cosa){
 		if (not self.sePuedeGuardar(cosa)) self.error("No se puede guardar este objeto en la acade")
 	}
+	method cosasMenosUtiles(){
+		return muebles.map({mueble => mueble.cosaMenosUtil()}).asSet()
+	}
+	method marcaDeLaCosaMenosUtil(){
+		return self.cosaMenosUtil().marca()
+	}
+	method cosaMenosUtil(){
+		return self.cosasMenosUtiles().min({cosa => cosa.utilidad()})
+	}
+	method cosasMenosUtilesNoMagicas(){
+		return self.cosasMenosUtiles().filter({cosa => not cosa.esMagica()})
+	}
+	method removerCosasMenosUtilesNoMagicas(){
+		self.cosasMenosUtilesNoMagicas().forEach({cosa => self.removerCosa(cosa)})
+	}
+	method removerCosa(cosa){
+		self.dondeGuarda(cosa).removerCosa(cosa)
+	}
 	
 }
-class Marca{
-	
+object acme{
+	method utilidadQueAporta(cosa){
+		return cosa.volumen() / 2
+	}
+}
+object fenix {
+	method utilidadQueAporta(cosa){
+		return if (cosa.esReliquia()) 3 else 0
+	}
+}
+object cuchuflito{
+	method utilidadQueAporta(cosa){
+		return 0
+	}
 }
 class Mueble{
 	const contenido = #{}
@@ -41,6 +71,21 @@ class Mueble{
 	method sePuedeGuardar(cosa){
 		return cosa.sePuedeGuardar()
 	}
+	method utilidad(){
+		return contenido.sum({cosa => cosa.utilidad()}) / self.precio()
+	}
+	method precio(){return null}
+	method cosaMenosUtil(){
+		return contenido.min({cosa => cosa.utilidad()})
+	}
+	method removerCosa(cosa){
+		self.validarRemover(cosa)
+		contenido.remove(cosa)
+		cosa.salirDelMueble()
+	}
+	method validarRemover(cosa){
+		if (not contenido.contains(cosa)) self.error("No tengo esa cosa")
+	}
 }
 class CosaGuardable{
 	const property volumen  //numero
@@ -48,11 +93,27 @@ class CosaGuardable{
 	const property esMagica // Booleano
 	const property esReliquia // Booleano
 	var property estaGuardado = false// Booleano
+	
+	method utilidad(){
+		return self.volumen() + self.indiceMagico() + self.indiceReliquia() + self.utilidadDeMarca()
+	}
+	method utilidadDeMarca(){
+		return self.marca().utilidadQueAporta(self)
+	}
+	method indiceMagico(){
+		return if (self.esMagica()) 3 else 0
+	}
+	method indiceReliquia(){
+		return if (self.esReliquia()) 5 else 0
+	}
 	method sePuedeGuardar(){
 		return not self.estaGuardado()
 	}
 	method guardarse(){
 		estaGuardado = true
+	}
+	method salirDelMueble(){
+		estaGuardado = false
 	}
 }
 
@@ -72,6 +133,9 @@ class Armario inherits Mueble{
 	method cambiarCapacidadMaxima(capacidadNueva){
 		capacidadMaxima = capacidadNueva
 	}
+	override method precio(){
+		return 5 * self.capacidadMaxima()
+	}
 }
 
 class Baul inherits Mueble{
@@ -86,11 +150,38 @@ class Baul inherits Mueble{
 	method superaLaCapacidadMaxima(cosa){
 		return (cosa.volumen() + self.volumenActual()) > self.capacidadMaximaDeVolumen()
 	}
+	override method precio(){
+		return self.capacidadMaximaDeVolumen() + 2
+	}
+	
+	override method utilidad(){
+		return super() + self.indiceUtilidadReliquias()
+	}
+	method indiceUtilidadReliquias(){
+		return if (self.tieneSoloReliquias()) 2 else 0
+	}
+	method tieneSoloReliquias(){
+		return contenido.all({cosa => cosa.esReliquia()})
+	}
 	
 }
 class GabineteMagico inherits Mueble{
-	
+	const precio
 	override method sePuedeGuardar(cosa){
 		return super(cosa) && cosa.esMagica()
+	}
+	override method precio(){
+		return precio
+	}
+}
+class BaulMagico inherits Baul{
+	override method precio(){
+		return super()*2
+	}
+	override method utilidad(){
+		return super() + self.cantidadDeElementosMagicos()
+	}
+	method cantidadDeElementosMagicos(){
+		return contenido.count({cosa => cosa.esMagica()})
 	}
 }
